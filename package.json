@@ -1,0 +1,19 @@
+{
+  "name": "serverless-mongodb-backend",
+  "version": "1.0.0",
+  "description": "Serverless MongoDB Quick Start API",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": ""
+  },
+  "author": "Grady Rogers",
+  "license": "ISC",
+  "dependencies": {
+    "mongoose": "5.4.x"
+  },
+  "devDependencies": {
+    "babel-cli": "6.26.x",
+    "babel-preset-env": "1.7.x",
+    "eslint": "^5.12.0"
+  }
+}

@@ -1,0 +1,47 @@
+service: serverless-mongodb-backend
+frameworkVersion: '=1.23.X'
+
+provider:
+  name: aws
+  runtime: nodejs8.10
+  stage: ${opt:stage, 'dev'} # use dev, test, or prod
+  region: ${opt:region, 'us-east-1'}
+  profile: ${opt:profile, 'default'}
+  apiKeys:
+    - ${self:provider.stage}-api
+
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - ec2:List*
+        - ec2:Describe*
+        - ec2:RegisterImage
+        - ec2:DeregisterImage
+
+custom:
+  NodeEnvByStage:
+    dev: development
+    test: production
+    prod: production
+
+ environment:
+   NODE_ENV: ${self:custom.NodeEnvByStage.${self:provider.stage}}
+
+package:
+ include:
+   - node_modules/**
+   - dist/**
+ exclude:
+   - exclude-me.js
+   - exclude-me-dir/**
+
+functions:
+  mongodbCrud:
+    handler: dist/index.crud
+    description: Handles Create, Read, Update, and Destroy operations for MongoDB
+    events:
+      - http:
+          path: /
+          method: '*'
+          cors: true
+    private: true # enforces the use of x-api-key in header
