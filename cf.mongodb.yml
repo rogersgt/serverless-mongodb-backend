@@ -1,0 +1,121 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: MongoDB Service
+
+Parameters:
+  InstanceType:
+    Type: String
+    Description: Size of the VM(s) to run the MongoDB container(s) on
+    Default: t2.nano
+
+  WhitelistCidrIPv4:
+    Type: String
+    Description: To Allow single Ip address, append /32
+    Default: 0.0.0.0/0
+
+  InstanceSize:
+    Type: Integer
+    Description: Size of the EBS Volume in GiB
+    Default: 5
+
+  InitUsername:
+    Type: String
+    Description: Root username mongodb is started with
+    Default: root
+
+  InitPassword:
+    Type: String
+    Description: Root password mongodb is started with
+
+  MongoVersion:
+    Type: String
+    Description: mongo docker image tag to specify version
+    Default: latest
+    AllowedValues:
+      - latest
+      - '4.1'
+      - '4'
+      - '3.6'
+      - '3.4'
+
+
+Mappings:
+  ConfigByRegion:
+    us-east-1:
+      AMI: ami-06bec82fb46167b4f
+    us-east-2:
+      AMI: ami-0b31574e5d83d5c42
+    us-west-2:
+      AMI: ami-0b2cc421c0d3015b4
+    us-west-1:
+      AMI: ami-03a86880c9c6880ac
+    eu-west-3:
+      AMI: ami-0ca148151641c602a
+    eu-west-2:
+      AMI: ami-0e4266b1932fa97c8
+    eu-west-1:
+      AMI: ami-0de29b072b458b107
+
+
+Resources:
+  WriterIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      InstanceId: !Ref PrimaryEC2
+
+  PrimaryEC2:
+    Type: AWS::EC2::Instance
+    Properties:
+      LaunchTemplate:
+        LaunchTemplateName: !Join ['-', [MongoDB, !Ref 'AWS::StackId']]
+        Version: !GetAtt LaunchTemplate.LatestVersionId
+
+  LaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      TemplateName: !Join ['-', [MongoDB, !Ref 'AWS::StackId']]
+      TemplateData:
+        SecurityGroups:
+          - !Ref SecurityGroup
+        ImageId: !FindInMap [ConfigByRegion, !Ref 'AWS::Region', AMI]
+        InstanceType: !Ref 'InstanceType'
+        BlockDeviceMapping:
+          Ebs:
+            VolumeSize: !Ref 'InstanceSize'
+        UserData:
+          Fn::Base64:
+            FN::Sub:
+              - |
+                #!/bin/bash
+                sudo yum update -y
+                cloud-init-per once docker_options echo 'OPTIONS="--storage-opt dm.basesize=${DockerStorage}"' >> /etc/sysconfig/docker
+                sudo service docker start
+                sudo yum install -y aws-cfn-bootstrap
+                sudo docker run -d \
+                  -v /home/ec2-user/data:/data \
+                  -p 27017:27017 \
+                  -e "MONGO_INITDB_ROOT_USERNAME=${InitUsername}" \
+                  -e "MONGO_INITDB_ROOT_PASSWORD=${InitPassword}" \
+                  --name mongo \
+                  mongo:${MongoVersion}
+              - {
+                DockerStorage: !Ref 'DockerStorage',
+                InitUsername: !Ref 'InitUsername',
+                InitPassword: !Ref 'InitPassword',
+                MongoVersion: !Ref 'MongoVersion'
+                }
+
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Join ['-', [MongoDB, !Ref 'AWS::StackId']]
+      GroupDescription: Security Group for MongoDB cluster
+      SecurityGroupIngress:
+        - CidrIp: !Ref 'WhitelistCidrIp'
+          FromPort: 27017
+          ToPort: 27017
+          IpProtocol: tcp
+    
+Outputs:
+  Writer:
+    Value: !Ref PrimaryEC2
+    Description: EC2 Instance that hosts the writer MongoDB container
