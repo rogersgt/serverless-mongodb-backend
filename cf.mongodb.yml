@@ -5,17 +5,17 @@ Parameters:
   InstanceType:
     Type: String
     Description: Size of the VM(s) to run the MongoDB container(s) on
-    Default: t2.nano
+    Default: t2.small
 
-  WhitelistCidrIPv4:
+  WhitelistCidrIp:
     Type: String
     Description: To Allow single Ip address, append /32
     Default: 0.0.0.0/0
 
   InstanceSize:
-    Type: Integer
+    Type: Number
     Description: Size of the EBS Volume in GiB
-    Default: 5
+    Default: 10
 
   InitUsername:
     Type: String
@@ -36,6 +36,10 @@ Parameters:
       - '4'
       - '3.6'
       - '3.4'
+
+  DockerStorage:
+    Type: String
+    Default: 8G
 
 
 Mappings:
@@ -66,24 +70,24 @@ Resources:
     Type: AWS::EC2::Instance
     Properties:
       LaunchTemplate:
-        LaunchTemplateName: !Join ['-', [MongoDB, !Ref 'AWS::StackId']]
-        Version: !GetAtt LaunchTemplate.LatestVersionId
+        LaunchTemplateId: !Ref LaunchTemplate
+        Version: !GetAtt LaunchTemplate.LatestVersionNumber
 
   LaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
     Properties:
-      TemplateName: !Join ['-', [MongoDB, !Ref 'AWS::StackId']]
-      TemplateData:
+      LaunchTemplateData:
         SecurityGroups:
           - !Ref SecurityGroup
         ImageId: !FindInMap [ConfigByRegion, !Ref 'AWS::Region', AMI]
         InstanceType: !Ref 'InstanceType'
-        BlockDeviceMapping:
-          Ebs:
-            VolumeSize: !Ref 'InstanceSize'
+        BlockDeviceMappings:
+          - Ebs:
+              VolumeSize: !Ref 'InstanceSize'
+            DeviceName: /dev/sdh
         UserData:
           Fn::Base64:
-            FN::Sub:
+            Fn::Sub:
               - |
                 #!/bin/bash
                 sudo yum update -y
