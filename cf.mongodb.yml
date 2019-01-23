@@ -6,16 +6,24 @@ Parameters:
     Type: String
     Description: Size of the VM(s) to run the MongoDB container(s) on
     Default: t2.small
+    AllowedValues:
+      - t2.micro
+      - t2.small
+      - m3.medium
+      - m5.large
+      - m5.xlarge
+      - m5a.4xlarge
+      - m5a.24xlarge
 
   WhitelistCidrIp:
     Type: String
     Description: To Allow single Ip address, append /32
     Default: 0.0.0.0/0
 
-  InstanceSize:
+  VolumeSize:
     Type: Number
     Description: Size of the EBS Volume in GiB
-    Default: 10
+    Default: 12
 
   InitUsername:
     Type: String
@@ -39,7 +47,12 @@ Parameters:
 
   DockerStorage:
     Type: String
-    Default: 8G
+    Description: Amount of memory allocated to Docker Engine. Must be less than VolumeSize.
+    Default: 10G
+
+  Iops:
+    Type: Number
+    Default: 100
 
 
 Mappings:
@@ -83,8 +96,10 @@ Resources:
         InstanceType: !Ref 'InstanceType'
         BlockDeviceMappings:
           - Ebs:
-              VolumeSize: !Ref 'InstanceSize'
-            DeviceName: /dev/sdh
+              VolumeSize: !Ref 'VolumeSize'
+              Iops: !Ref 'Iops'
+              VolumeType: io1
+            DeviceName: /dev/xvda
         UserData:
           Fn::Base64:
             Fn::Sub:
