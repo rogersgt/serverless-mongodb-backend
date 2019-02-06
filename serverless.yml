@@ -17,6 +17,7 @@ provider:
         - ec2:Describe*
         - ec2:RegisterImage
         - ec2:DeregisterImage
+      Resource: '*'
 
 custom:
   NodeEnvByStage:
@@ -24,8 +25,8 @@ custom:
     test: production
     prod: production
 
- environment:
-   NODE_ENV: ${self:custom.NodeEnvByStage.${self:provider.stage}}
+environment:
+  NODE_ENV: ${self:custom.NodeEnvByStage.${self:provider.stage}}
 
 package:
  include:
@@ -45,3 +46,5 @@ functions:
           method: '*'
           cors: true
     private: true # enforces the use of x-api-key in header
+    environment:
+      MONGO_URI: ${file(./env.json):MONGO_URI}

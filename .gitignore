@@ -7,3 +7,6 @@ jspm_packages
 
 # compiled code
 dist
+
+# env vars
+env.json

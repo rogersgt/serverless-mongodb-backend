@@ -1,5 +1,18 @@
 {
+  "env": {
+    "es6": true
+  },
+  "parserOptions": {
+    "sourceType": "module",
+    "ecmaVersion": 9
+  },
   "extends": [
     "eslint:recommended"
-  ]
+  ],
+  "rules": {
+    "no-console": ["warn"],
+    "no-unused-vars": ["warn"],
+    "no-undef": "off",
+    "no-extra-boolean-cast": "off"
+  }
 }
