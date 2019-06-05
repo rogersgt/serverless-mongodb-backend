@@ -43,7 +43,19 @@ functions:
     events:
       - http:
           path: /
-          method: '*'
+          method: get
+          cors: true
+          request:
+            parameters:
+              paths:
+                id: true
+      - http:
+          path: /
+          method: post
+          cors: true
+      - http:
+          path: /
+          method: put
           cors: true
     private: true # enforces the use of x-api-key in header
     environment:

@@ -1,7 +1,7 @@
 {
   "resource": "/",
   "path": "/moose",
-  "httpMethod": "POST",
+  "httpMethod": "GET",
   "headers": {
       "Accept": "application/json,text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
       "Accept-Encoding": "gzip, deflate, br",
@@ -27,7 +27,9 @@
       "X-Forwarded-Proto": "https"
   },
   "queryStringParameters": null,
-  "pathParameters": null,
+  "pathParameters": {
+    "id": "31e91db2-05e8-4b89-9156-06e964333a4c"
+  },
   "stageVariables": null,
   "requestContext": {
       "path": "/dev/",
@@ -50,13 +52,9 @@
           "user": null
       },
       "resourcePath": "/",
-      "httpMethod": "POST",
+      "httpMethod": "GET",
       "apiId": "j3azlsj0c4"
   },
-  "body": {
-    "_id": "31e91db2-05e8-4b89-9156-06e964333a4c",
-    "name": "Alaska Moose",
-    "description": "One of the largest moose species."
-  },
+  "body": null,
   "isBase64Encoded": false
 }

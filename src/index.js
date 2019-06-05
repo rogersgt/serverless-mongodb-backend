@@ -1,10 +1,14 @@
 'use strict';
 import 'babel-polyfill';
 import mongoose from 'mongoose';
-import uuid from 'uuid/v4';
 import { handleEventBody } from './tools/shapers';
+import del from './methods/delete';
+import post from './methods/post';
+import put from './methods/put';
+import get from './methods/get';
 import logger from './logger';
 import badRequest from './responses/badRequest';
+import success from './responses/success';
 
 let CONN = null;
 let MONGO_URI = null;
@@ -29,19 +33,26 @@ export async function crud (event, context, callback) {
     }
 
     const body = handleEventBody(event);
-    if (!body._id) {
-      body._id = uuid();
-    }
     const requestMethod = event.requestContext.httpMethod.toLowerCase();
+    let methodResp;
 
     switch(requestMethod) {
-      case 'post': await mongoose.connection.db.collection(collectionName).save(body);
+      case 'delete': methodResp = await del(collectionName, event.pathParameters);
         break;
-      default: callback(null, badRequest());
+      case 'get': methodResp = await get(collectionName, event.pathParameters);
         break;
+      case 'post': methodResp = await post(collectionName, body);
+        break;
+      case 'put': methodResp = await put(collectionName, body);
+        break;
+      default:
+        mongoose.disconnect();
+        callback(null, badRequest());
+        return 1; // end function
     }
 
     await mongoose.disconnect();
+    callback(null, success(methodResp));
   } catch (error) {
     logger.error(error);
     mongoose.disconnect();

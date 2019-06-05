@@ -5,7 +5,10 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "yarn eslint src && babel src --out-dir dist",
-    "test:post": "yarn build && SLS_DEBUG=* serverless invoke local -f mongodbCrud --stage dev -p test/events/post.json"
+    "test:delete": "yarn build && SLS_DEBUG=* serverless invoke local -f mongodbCrud --stage dev -p test/events/delete.json",
+    "test:get": "yarn build && SLS_DEBUG=* serverless invoke local -f mongodbCrud --stage dev -p test/events/get.json",
+    "test:post": "yarn build && SLS_DEBUG=* serverless invoke local -f mongodbCrud --stage dev -p test/events/post.json",
+    "test:put": "yarn build && SLS_DEBUG=* serverless invoke local -f mongodbCrud --stage dev -p test/events/put.json"
   },
   "author": "Grady Rogers",
   "license": "ISC",
