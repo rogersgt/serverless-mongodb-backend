@@ -25,14 +25,9 @@ export async function crud (event, context, callback) {
     const collectionName = event.path.replace('/', '');
     const body = handleEventBody(event);
 
-    const docSchema = objToSchema(body);
-    const factory = new Factory(docSchema, collectionName);
-    const Mod = factory.create();
-    const doc = new Mod(body);
-
     switch(event.requestContext.httpMethod.toLowerCase()) {
       case 'post':
-        await post(doc);
+        await mongoose.connection.db.collection(collectionName).save(body);
         break;
       default:
         logger.log('not post');
