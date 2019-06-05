@@ -1,4 +1,3 @@
-/*global process: true */
 'use strict';
 import 'babel-polyfill';
 import mongoose from 'mongoose';
@@ -6,6 +5,7 @@ import { handleEventBody, objToSchema } from './tools/shapers';
 import logger from './logger';
 import post from './methods/post';
 import Factory from './models/factory';
+import badRequest from './responses/badRequest';
 
 let CONN = null;
 let MONGO_URI = null;
@@ -23,6 +23,12 @@ export async function crud (event, context, callback) {
 
   try {
     const collectionName = event.path.replace('/', '');
+    if (!collectionName) {
+      callback(null, badRequest());
+      mongoose.disconnect();
+      return 1; // end function
+    }
+
     const body = handleEventBody(event);
 
     const docSchema = objToSchema(body);

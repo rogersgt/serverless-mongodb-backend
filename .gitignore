@@ -10,3 +10,6 @@ dist
 
 # env vars
 env.json
+
+# local mongo db data
+mongodb
