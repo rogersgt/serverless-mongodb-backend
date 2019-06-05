@@ -11,5 +11,5 @@ dist
 # env vars
 env.json
 
-# data
+# local mongo db data
 mongodb
