@@ -1,6 +1,7 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: MongoDB Service
 
+
 Parameters:
   InstanceType:
     Type: String
@@ -31,6 +32,7 @@ Parameters:
     Default: root
 
   InitPassword:
+    NoEcho: true
     Type: String
     Description: Root password mongodb is started with
 
@@ -53,6 +55,23 @@ Parameters:
   Iops:
     Type: Number
     Default: 100
+
+  SSHPort:
+    Type: String
+    Description: Used for troubleshooting the DB instances
+    Default: 'Closed'
+    AllowedValues:
+      - Open
+      - Closed
+
+  Environment:
+    Type: String
+    Description: Semantic name for this db cluster
+    Default: dev
+
+
+Conditions:
+  OpenSSHPort: !Equals [!Ref 'SSHPort', 'Open']
 
 
 Mappings:
@@ -116,12 +135,10 @@ Resources:
                   -e "MONGO_INITDB_ROOT_PASSWORD=${InitPassword}" \
                   --name mongo \
                   mongo:${MongoVersion}
-              - {
-                DockerStorage: !Ref 'DockerStorage',
-                InitUsername: !Ref 'InitUsername',
-                InitPassword: !Ref 'InitPassword',
+              - DockerStorage: !Ref 'DockerStorage'
+                InitUsername: !Ref 'InitUsername'
+                InitPassword: !Ref 'InitPassword'
                 MongoVersion: !Ref 'MongoVersion'
-                }
 
   SecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -133,8 +150,86 @@ Resources:
           FromPort: 27017
           ToPort: 27017
           IpProtocol: tcp
-    
+
+  OptionalSShRule:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: OpenSSHPort
+    Properties:
+      GroupName: !Ref SecurityGroup
+      CidrIp: 0.0.0.0/0
+      FromPort: 22
+      ToPort: 22
+      IpProtocol: tcp
+
+  Dashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Sub 'mongodb-${Environment}'
+      DashboardBody: !Sub
+        - '{
+            "widgets": [
+                {
+                    "type": "metric",
+                    "x": 0,
+                    "y": 0,
+                    "width": 6,
+                    "height": 6,
+                    "properties": {
+                        "view": "timeSeries",
+                        "stacked": true,
+                        "metrics": [
+                            [ "AWS/EC2", "CPUUtilization", "InstanceId", "${instanceId}" ]
+                        ],
+                        "region": "${AWS::Region}",
+                        "title": "CPU Utilization"
+                    }
+                },
+                {
+                    "type": "metric",
+                    "x": 6,
+                    "y": 0,
+                    "width": 6,
+                    "height": 6,
+                    "properties": {
+                        "view": "timeSeries",
+                        "stacked": true,
+                        "metrics": [
+                            [ "AWS/EC2", "DiskReadOps", "InstanceId", "${instanceId}" ],
+                            [ ".", "DiskWriteOps", ".", "." ]
+                        ],
+                        "region": "${AWS::Region}",
+                        "title": "Disk Ops",
+                        "period": 300
+                    }
+                },
+                {
+                    "type": "metric",
+                    "x": 12,
+                    "y": 0,
+                    "width": 6,
+                    "height": 6,
+                    "properties": {
+                        "view": "timeSeries",
+                        "stacked": true,
+                        "metrics": [
+                            [ "AWS/EC2", "NetworkPacketsIn", "InstanceId", "${instanceId}" ],
+                            [ ".", "NetworkPacketsOut", ".", "." ]
+                        ],
+                        "region": "${AWS::Region}",
+                        "title": "Network Packets"
+                    }
+                }
+            ]
+        }'
+        - instanceId: !Ref PrimaryEC2
+
+
 Outputs:
   Writer:
     Value: !Ref PrimaryEC2
     Description: EC2 Instance that hosts the writer MongoDB container
+
+  IP:
+    Value: !Ref WriterIP
+    Export:
+      Name: mongodb-cluster-host
