@@ -9,7 +9,7 @@ jspm_packages
 dist
 
 # env vars
-env.json
+*.env
 
 # local mongo db data
 mongodb

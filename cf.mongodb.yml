@@ -21,11 +21,6 @@ Parameters:
     Description: To Allow single Ip address, append /32
     Default: 0.0.0.0/0
 
-  VolumeSize:
-    Type: Number
-    Description: Size of the EBS Volume in GiB
-    Default: 12
-
   InitUsername:
     Type: String
     Description: Root username mongodb is started with
@@ -47,53 +42,97 @@ Parameters:
       - '3.6'
       - '3.4'
 
-  DockerStorage:
+  DBStorage:
     Type: String
-    Description: Amount of memory allocated to Docker Engine. Must be less than VolumeSize.
-    Default: 10G
+    Description: Amount of memory allocated to MongoDB Docker Engine
+    Default: 10GB
+    AllowedValues:
+      - 5GB
+      - 10GB
+      - 25GB
+      - 50GB
+      - 75GB
+      - 100GB
+      - 250GB
+      - 500GB
+      - 1000GB
+      - 2000GB
 
   Iops:
     Type: Number
     Default: 100
-
-  SSHPort:
-    Type: String
-    Description: Used for troubleshooting the DB instances
-    Default: 'Closed'
-    AllowedValues:
-      - Open
-      - Closed
 
   Environment:
     Type: String
     Description: Semantic name for this db cluster
     Default: dev
 
+  LogRetention:
+    Type: Number
+    Description: Number of days to keep logs in CloudWatch
+    Default: 1
+    AllowedValues:
+      - 1
+      - 3
+      - 14
+      - 30
+      - 365
+      - 730
+      - 1095
 
-Conditions:
-  OpenSSHPort: !Equals [!Ref 'SSHPort', 'Open']
+  KeyPairName:
+    Description: Name of a pre-existing EC2 SSH Key. Leave Blank to launch with no SSH Key.
+    Type: String
+
+  ImageId:
+    Description: AMI Backup to restore DB Instance(s) from. Leave Blank for a new DB Instance/DB cluster.
+    Type: String
+
+  SSHAllowedOriginIP:
+    Type: String
+    Description: Leave blank to close port 22
 
 
 Mappings:
   ConfigByRegion:
     us-east-1:
-      AMI: ami-06bec82fb46167b4f
+      AMI: ami-0ff8a91507f77f867
     us-east-2:
-      AMI: ami-0b31574e5d83d5c42
+      AMI: ami-0b59bfac6be064b78
     us-west-2:
-      AMI: ami-0b2cc421c0d3015b4
+      AMI: ami-a0cfeed8
     us-west-1:
-      AMI: ami-03a86880c9c6880ac
+      AMI: ami-0bdb828fd58c52235
     eu-west-3:
-      AMI: ami-0ca148151641c602a
+      AMI: ami-0ebc281c20e89ba4b
     eu-west-2:
-      AMI: ami-0e4266b1932fa97c8
+      AMI: ami-f976839e
     eu-west-1:
-      AMI: ami-0de29b072b458b107
+      AMI: ami-047bb4163c506cd98
+
+  Options:
+    VolumeSize:
+      5GB: 8
+      10GB: 12
+      25GB: 30
+      50GB: 60
+      75GB: 85
+      100GB: 110
+      250GB: 270
+      500GB: 520
+      1000GB: 1020
+
+
+Conditions:
+  UseImage: !Not [!Equals [!Ref 'ImageId', '']]
+  UseSSHKey: !Not [!Equals [!Ref 'KeyPairName', '']]
+  OpenSSHPort: !And
+  - !Not [!Equals [!Ref 'SSHAllowedOriginIP', '']]
+  - !Condition UseSSHKey
 
 
 Resources:
-  WriterIP:
+  PrimaryIp:
     Type: AWS::EC2::EIP
     Properties:
       InstanceId: !Ref PrimaryEC2
@@ -105,19 +144,92 @@ Resources:
         LaunchTemplateId: !Ref LaunchTemplate
         Version: !GetAtt LaunchTemplate.LatestVersionNumber
 
+  Role:
+    Type: AWS::IAM::Role
+    Properties: 
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: '/'
+      Policies: 
+        - PolicyName: !Sub 'mongodb-${Environment}-logs-policy'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:Put*
+                Resource:
+                  - !GetAtt DBLogGroup.Arn
+                  - !Sub
+                    - '${logGroupArn}/*'
+                    - logGroupArn: !GetAtt DBLogGroup.Arn
+      RoleName: !Sub 'mongodb-${Environment}'
+
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties: 
+      InstanceProfileName: !Sub 'mongodb-${Environment}'
+      Path: '/'
+      Roles: 
+        - !Ref LogsRole
+
+  LogsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          -
+            Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com 
+            Action: 
+              - sts:AssumeRole
+      Path: '/'
+      Policies:
+        - PolicyName: !Sub 'mongodb-${Environment}-logs'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:Create*
+                  - logs:Put*
+                Resource:
+                  - !GetAtt DBLogGroup.Arn
+                  - !Sub
+                    - '${arn}/*'
+                    - arn: !GetAtt DBLogGroup.Arn
+
   LaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
     Properties:
       LaunchTemplateData:
         SecurityGroups:
           - !Ref SecurityGroup
-        ImageId: !FindInMap [ConfigByRegion, !Ref 'AWS::Region', AMI]
+        ImageId: !If
+          - UseImage
+          - !Ref 'ImageId'
+          - !FindInMap [ConfigByRegion, !Ref 'AWS::Region', AMI]
+        IamInstanceProfile:
+          Arn: !GetAtt InstanceProfile.Arn
         InstanceType: !Ref 'InstanceType'
+        KeyName: !If [UseSSHKey, !Ref 'KeyPairName', !Ref 'AWS::NoValue']
         BlockDeviceMappings:
           - Ebs:
-              VolumeSize: !Ref 'VolumeSize'
+              VolumeSize: !FindInMap [Options, VolumeSize, !Ref 'DBStorage']
               Iops: !Ref 'Iops'
               VolumeType: io1
+              Encrypted: true
             DeviceName: /dev/xvda
         UserData:
           Fn::Base64:
@@ -125,20 +237,38 @@ Resources:
               - |
                 #!/bin/bash
                 sudo yum update -y
+                # set docker storage per parameter
                 cloud-init-per once docker_options echo 'OPTIONS="--storage-opt dm.basesize=${DockerStorage}"' >> /etc/sysconfig/docker
                 sudo service docker start
-                sudo yum install -y aws-cfn-bootstrap
-                sudo docker run -d \
+                # sudo yum install -y aws-cfn-bootstrap
+                # write the startup command on a shell file
+                echo "sudo docker run -d \
                   -v /home/ec2-user/data:/data \
                   -p 27017:27017 \
                   -e "MONGO_INITDB_ROOT_USERNAME=${InitUsername}" \
                   -e "MONGO_INITDB_ROOT_PASSWORD=${InitPassword}" \
                   --name mongo \
-                  mongo:${MongoVersion}
-              - DockerStorage: !Ref 'DockerStorage'
+                  --restart=always \
+                  --log-driver awslogs \
+                  --log-opt awslogs-region=${AWS::Region} \
+                  --log-opt awslogs-group=${LogGroup} \
+                  mongo:${MongoVersion}" >> /home/ec2-user/start.sh
+                chmod +x /home/ec2-user/start.sh
+                # set cron to start mongodb docker on reboot
+                crontab -l | { cat; echo "@reboot /home/ec2-user/start.sh"; } | crontab -
+                # start mongodb
+                /bin/bash /home/ec2-user/start.sh
+              - DockerStorage: !Ref DBStorage
                 InitUsername: !Ref 'InitUsername'
                 InitPassword: !Ref 'InitPassword'
                 MongoVersion: !Ref 'MongoVersion'
+                LogGroup: !Ref DBLogGroup
+
+  DBLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub 'mongodb-${Environment}'
+      RetentionInDays: !Ref 'LogRetention'
 
   SecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -151,7 +281,7 @@ Resources:
           ToPort: 27017
           IpProtocol: tcp
 
-  OptionalSShRule:
+  SSHRule:
     Type: AWS::EC2::SecurityGroupIngress
     Condition: OpenSSHPort
     Properties:
@@ -230,6 +360,6 @@ Outputs:
     Description: EC2 Instance that hosts the writer MongoDB container
 
   IP:
-    Value: !Ref WriterIP
+    Value: !Ref PrimaryIp
     Export:
       Name: mongodb-cluster-host

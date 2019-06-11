@@ -27,6 +27,7 @@ custom:
 
 environment:
   NODE_ENV: ${self:custom.NodeEnvByStage.${self:provider.stage}}
+  MONGO_URI: ${env:MONGO_URI, '0.0.0.0:27017/db?authSource=admin'}
 
 package:
  include:
@@ -59,4 +60,3 @@ functions:
           cors: true
     private: true # enforces the use of x-api-key in header
     environment:
-      MONGO_URI: ${file(./env.json):MONGO_URI}
