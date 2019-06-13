@@ -21,16 +21,6 @@ Parameters:
     Description: To Allow single Ip address, append /32
     Default: 0.0.0.0/0
 
-  InitUsername:
-    Type: String
-    Description: Root username mongodb is started with
-    Default: root
-
-  InitPassword:
-    NoEcho: true
-    Type: String
-    Description: Root password mongodb is started with
-
   MongoVersion:
     Type: String
     Description: mongo docker image tag to specify version
@@ -92,6 +82,17 @@ Parameters:
     Type: String
     Description: Leave blank to close port 22
 
+  MasterUsername:
+    Type: String
+    NoEcho: true
+    Description: MongoDB Master username
+    Default: admin
+
+  MasterPassword:
+    Type: String
+    NoEcho: true
+    Description: MongoDB Master password
+
 
 Mappings:
   ConfigByRegion:
@@ -135,9 +136,9 @@ Resources:
   PrimaryIp:
     Type: AWS::EC2::EIP
     Properties:
-      InstanceId: !Ref PrimaryEC2
+      InstanceId: !Ref Instance1
 
-  PrimaryEC2:
+  Instance1:
     Type: AWS::EC2::Instance
     Properties:
       LaunchTemplate:
@@ -179,9 +180,9 @@ Resources:
       InstanceProfileName: !Sub 'mongodb-${Environment}'
       Path: '/'
       Roles: 
-        - !Ref LogsRole
+        - !Ref InstanceRole
 
-  LogsRole:
+  InstanceRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -209,6 +210,30 @@ Resources:
                   - !Sub
                     - '${arn}/*'
                     - arn: !GetAtt DBLogGroup.Arn
+        - PolicyName: !Sub 'mongodb-${Environment}-ssm'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ssm:Get*
+                  - ssm:Describe*
+                  - kms:Create*
+                  - kms:Decrypt
+                  - kms:Describe*
+                  - kms:GenerateDataKey*
+                  - kms:Get*
+                Resource: '*'
+
+  # MasterDBCreds:
+  #   Type: AWS::SecretsManager::Secret
+  #   Properties:
+  #     Description: !Sub '${Environment} Mongo master creds'
+  #     GenerateSecretString:
+  #       SecretStringTemplate: !Join ['', ['{"username": "', !Ref 'MasterUsername', '"}']]
+  #       GenerateStringKey: "password"
+  #       PasswordLength: 16
+  #       ExcludeCharacters: '"@/\'
 
   LaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
@@ -237,16 +262,29 @@ Resources:
               - |
                 #!/bin/bash
                 sudo yum update -y
+                # install docker
+                sudo yum install -y docker
                 # set docker storage per parameter
-                cloud-init-per once docker_options echo 'OPTIONS="--storage-opt dm.basesize=${DockerStorage}"' >> /etc/sysconfig/docker
+                cloud-init-per once \
+                  docker_options echo '--storage-opt dm.basesize=${DockerStorage}' >> /etc/sysconfig/docker &&\
+                  echo "fs.file-max = 64000" >> /etc/sysctl.conf
                 sudo service docker start
                 # sudo yum install -y aws-cfn-bootstrap
+                sudo docker run -d \
+                  -v /home/ec2-user/data:/data \
+                  -p 27017:27017 \
+                  -e "MONGO_INITDB_ROOT_USERNAME=${MasterUsername}" \
+                  -e "MONGO_INITDB_ROOT_PASSWORD=${MasterPassword}" \
+                  --name mongo \
+                  --restart=always \
+                  --log-driver awslogs \
+                  --log-opt awslogs-region=${AWS::Region} \
+                  --log-opt awslogs-group=${LogGroup} \
+                  mongo:${MongoVersion}
                 # write the startup command on a shell file
                 echo "sudo docker run -d \
                   -v /home/ec2-user/data:/data \
                   -p 27017:27017 \
-                  -e "MONGO_INITDB_ROOT_USERNAME=${InitUsername}" \
-                  -e "MONGO_INITDB_ROOT_PASSWORD=${InitPassword}" \
                   --name mongo \
                   --restart=always \
                   --log-driver awslogs \
@@ -256,11 +294,9 @@ Resources:
                 chmod +x /home/ec2-user/start.sh
                 # set cron to start mongodb docker on reboot
                 crontab -l | { cat; echo "@reboot /home/ec2-user/start.sh"; } | crontab -
-                # start mongodb
-                /bin/bash /home/ec2-user/start.sh
+                # allow non-root user to access docker for troubleshooting
+                sudo usermod -a -G docker ec2-user
               - DockerStorage: !Ref DBStorage
-                InitUsername: !Ref 'InitUsername'
-                InitPassword: !Ref 'InitPassword'
                 MongoVersion: !Ref 'MongoVersion'
                 LogGroup: !Ref DBLogGroup
 
@@ -351,12 +387,12 @@ Resources:
                 }
             ]
         }'
-        - instanceId: !Ref PrimaryEC2
+        - instanceId: !Ref Instance1
 
 
 Outputs:
   Writer:
-    Value: !Ref PrimaryEC2
+    Value: !Ref Instance1
     Description: EC2 Instance that hosts the writer MongoDB container
 
   IP:

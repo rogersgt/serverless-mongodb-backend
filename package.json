@@ -14,7 +14,7 @@
     "test:put": "yarn build && SLS_DEBUG=* serverless invoke local -f mongodbCrud --stage dev -p test/events/put.json"
   },
   "author": "Grady Rogers",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "babel-polyfill": "6.26.x",
     "mongoose": "5.4.x",
