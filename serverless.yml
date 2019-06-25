@@ -9,7 +9,7 @@ provider:
   profile: ${opt:profile, 'default'}
   apiKeys:
     - ${self:provider.stage}-api
-
+  stackName: ${env:CF_APP_STACKNAME, 'api'}
   iamRoleStatements:
     - Effect: Allow
       Action:
@@ -18,24 +18,20 @@ provider:
         - ec2:RegisterImage
         - ec2:DeregisterImage
       Resource: '*'
-
-custom:
-  NodeEnvByStage:
-    dev: development
-    test: production
-    prod: production
-
-environment:
-  NODE_ENV: ${self:custom.NodeEnvByStage.${self:provider.stage}}
-  MONGO_URI: ${env:MONGO_URI, '0.0.0.0:27017/db?authSource=admin'}
-
+  environment:
+    NODE_ENV: ${self:custom.NodeEnvByStage.${self:provider.stage}}
+    MONGO_URI: mongodb://${cf:}:27017/db?authSource=admin
 package:
  include:
    - node_modules/**
    - dist/**
- exclude:
-   - exclude-me.js
-   - exclude-me-dir/**
+
+custom:
+  NodeEnvByStage:
+    dev: development
+    test: test
+    prod: production
+
 
 functions:
   mongodbCrud:
