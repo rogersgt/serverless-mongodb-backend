@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 require('colors');
 const Rhinocloud = require('rhinocloud-sdk');
 const genPwd = require('generate-password');
@@ -32,12 +33,17 @@ const ssm = new SSM({ region: AWS_REGION });
 
 // --------------------- functions ----------------------- //
 function createOrUpdateMongoDB() {
+  console.log(`Upserting CloudFormation for mongodb...`);
   return rc.cloudformation.cloudForm({
     stackName: CF_DB_STACKNAME,
     templatePath: `${__dirname}/../cf.mongodb.yml`,
     options: {
       parameters: getParameters(),
-      protectedResourceTypes: ['AWS::EC2::Instance'], // never cause a db replacement to deployed cluster
+      protectedResourceTypes: [ // never cause a db replacement to deployed cluster
+        'AWS::EC2::Instance',
+        'AWS::EC2::Volume',
+        'AWS::EC2::LaunchTemplate',
+      ],
     },
   });
 }
@@ -86,11 +92,13 @@ function getParameters() {
 
 function handleApiCredentials() {
   if (IS_NEW_DEPLOYMENT) {
+    console.log(`Creating MongoDB Credentials for the API...`);
     return addApiUser({
       apiUserName: API_USERNAME,
       apiPassword: API_PASSWORD,
       paramPath: PARAM_PATH,
       dbName: DB_NAME,
+      dbCloudFormationStack: CF_DB_STACKNAME,
     });
   }
   console.log('Not a new deployment, skipping create API user...');
@@ -98,6 +106,7 @@ function handleApiCredentials() {
 }
 
 async function saveMasterCredentials() {
+  console.log(`Saving Master MongoDB Credentials to the SSM Parameter Store...`);
   await ssm.putParameter({
     Name: `${PARAM_PATH}/MONGO_MASTER_USERNAME`,
     Value: `${MONGO_MASTER_USERNAME}`,

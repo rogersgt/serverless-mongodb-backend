@@ -1,5 +1,6 @@
+
+/* eslint-disable no-console */
 require('colors');
-const genPwd = require('generate-password');
 const Rhinocloud = require('rhinocloud-sdk');
 const { SSM } = require('aws-sdk');
 const { MongoClient } = require('mongodb');

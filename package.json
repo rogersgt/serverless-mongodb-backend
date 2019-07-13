@@ -4,9 +4,10 @@
   "description": "Serverless MongoDB Quick Start API",
   "main": "dist/index.js",
   "scripts": {
-    "build": "yarn eslint src && babel src --out-dir dist",
+    "build": "babel src --out-dir dist",
     "db:local": "dotenv docker-compose up -d mongo",
-    "deploy": "yarn build && dotenv node deploy",
+    "deploy": "yarn lint && yarn build && dotenv node deploy",
+    "lint": "eslint src && eslint deploy",
     "test:delete": "yarn build && dotenv serverless invoke local -f mongodbCrud --stage dev -p test/events/delete.json",
     "test:get": "yarn build && dotenv serverless invoke local -f mongodbCrud --stage dev -p test/events/get.json",
     "test:post": "yarn build && dotenv serverless invoke local -f mongodbCrud --stage dev -p test/events/post.json",
