@@ -394,7 +394,7 @@ Outputs:
     Value: !Ref Instance1
     Description: EC2 Instance that hosts the writer MongoDB container
 
-  IP:
+  DbHost:
     Value: !Ref PrimaryIp
     Export:
       Name: mongodb-cluster-host

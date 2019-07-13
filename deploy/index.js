@@ -1,31 +1,40 @@
+require('colors');
 const Rhinocloud = require('rhinocloud-sdk');
+const genPwd = require('generate-password');
+const { SSM } = require('aws-sdk');
 const addApiUser = require('./addApiUser');
 
-const rc = new Rhinocloud();
-
 const {
-  MONGO_MASTER_USERNAME,
-  MONGO_MASTER_PASSWORD,
+  API_USERNAME = genPwd.generate({ length: 8, numbers: true }),
+  API_PASSWORD = genPwd.generate({ length: 20, numbers: true }),
+  AWS_REGION = 'us-east-1',
+  MONGO_MASTER_USERNAME = genPwd.generate({ length: 8, numbers: true }),
+  MONGO_MASTER_PASSWORD = genPwd.generate({ length: 20, numbers: true }),
   DB_LOG_RETENTION = 1,
   DB_INSTANCE_TYPE = 't2.small',
   DB_STORAGE = '10GB',
+  DB_NAME = 'db',
   STAGE = 'dev',
   CF_DB_STACKNAME = `mongodb-${STAGE}`,
+  PARAM_PATH = `/${CF_DB_STACKNAME}`,
   IOPS = 100,
-  KEYPAIR_NAME,
+  IMAGE_ID = '',
+  KEYPAIR_NAME = '',
   MONGO_VERSION = 'latest',
-  SSH_ALLOW_ORIGIN,
+  SSH_ALLOW_ORIGIN = '',
   WHITELIST_CIDR_IP = '0.0.0.0/0',
 } = process.env;
 
 let IS_NEW_DEPLOYMENT = true;
 
+const rc = new Rhinocloud({ region: AWS_REGION });
+const ssm = new SSM({ region: AWS_REGION });
 
 // --------------------- functions ----------------------- //
 function createOrUpdateMongoDB() {
   return rc.cloudformation.cloudForm({
     stackName: CF_DB_STACKNAME,
-    templatePath: `${__dirname}/cf.mongodb.yml`,
+    templatePath: `${__dirname}/../cf.mongodb.yml`,
     options: {
       parameters: getParameters(),
       protectedResourceTypes: ['AWS::EC2::Instance'], // never cause a db replacement to deployed cluster
@@ -33,9 +42,8 @@ function createOrUpdateMongoDB() {
   });
 }
 
-async function getParameters() {
-  const IS_NEW_DEPLOYMENT = await rc.cloudformation.stackExists(CF_DB_STACKNAME);
-  const freshDeployParams = [{
+function getParameters() {
+  const params = [{
     key: 'InstanceType',
     value: DB_INSTANCE_TYPE,
   }, {
@@ -49,13 +57,13 @@ async function getParameters() {
     value: DB_STORAGE,
   }, {
     key: 'Iops',
-    value: IOPS,
+    value: `${IOPS}`,
   }, {
     key: 'Stage',
     value: STAGE,
   }, {
     key: 'LogRetention',
-    value: DB_LOG_RETENTION,
+    value: `${DB_LOG_RETENTION}`,
   }, {
     key: 'KeyPairName',
     value: KEYPAIR_NAME,
@@ -68,30 +76,51 @@ async function getParameters() {
   }, {
     key: 'MasterPassword',
     value: MONGO_MASTER_PASSWORD,
+  }, {
+    key: 'ImageId',
+    value: IMAGE_ID,
   }];
 
-  if (IS_NEW_DEPLOYMENT) {
-    return freshDeployParams;
-  }
-  return [];
+  return params;
 }
 
 function handleApiCredentials() {
   if (IS_NEW_DEPLOYMENT) {
-    return addApiUser();
+    return addApiUser({
+      apiUserName: API_USERNAME,
+      apiPassword: API_PASSWORD,
+      paramPath: PARAM_PATH,
+      dbName: DB_NAME,
+    });
   }
   console.log('Not a new deployment, skipping create API user...');
   return Promise.resolve(false);
 }
 
+async function saveMasterCredentials() {
+  await ssm.putParameter({
+    Name: `${PARAM_PATH}/MONGO_MASTER_USERNAME`,
+    Value: `${MONGO_MASTER_USERNAME}`,
+    Description: `Master MongoDB Username used for stage: ${STAGE}`,
+    Type: 'SecureString',
+  }).promise();
+
+  return ssm.putParameter({
+    Name: `${PARAM_PATH}/MONGO_MASTER_PASSWORD`,
+    Value: `${MONGO_MASTER_PASSWORD}`,
+    Description: `Master MongoDB Password used for stage: ${STAGE}`,
+    Type: 'SecureString',
+  }).promise();
+}
+
 // ---------------------- entry point ------------------- //
 (async function deploy() {
-  // createOrUpdateMongoDB()
-  // .then(handleApiCredentials)
-  // .then(() => console.log('Completed deployment'))
-  // .catch((e) => {
-  //   console.log(e);
-  //   process.exit(1);
-  // });
-  console.log(CF_DB_STACKNAME);
+  createOrUpdateMongoDB()
+  .then(saveMasterCredentials)
+  .then(handleApiCredentials)
+  .then(() => console.log('Completed deployment'))
+  .catch((e) => {
+    console.log(e);
+    process.exit(1);
+  });
 })();
