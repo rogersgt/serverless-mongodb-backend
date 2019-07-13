@@ -1,14 +1,6 @@
 require('colors');
-const fs = require('fs');
-const dotenv = require('dotenv');
 const genPwd = require('generate-password');
 const { MongoClient } = require('mongodb');
-
-const SETUP_ENV = `${__dirname}/../setup.env`;
-
-if (fs.existsSync(SETUP_ENV)) {
-  dotenv.config({ path: SETUP_ENV });
-}
 
 const {
   MONGO_URI = 'mongodb://127.0.0.1:27017',
@@ -17,7 +9,7 @@ const {
   API_PASSWORD = genPwd.generate({ numbers: true, length: 10 })
 } = process.env;
 
-(async function initializeDB() {
+module.exports = async function initializeDB() {
   let conn;
 
   try {
@@ -54,4 +46,4 @@ const {
     conn.close();
     process.exit(1);
   }
-})();
+}

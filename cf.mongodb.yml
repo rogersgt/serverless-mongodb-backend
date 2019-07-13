@@ -6,7 +6,7 @@ Parameters:
   InstanceType:
     Type: String
     Description: Size of the VM(s) to run the MongoDB container(s) on
-    Default: m3.medium
+    Default: t2.small
     AllowedValues:
       - t2.micro
       - t2.small
@@ -52,9 +52,9 @@ Parameters:
     Type: Number
     Default: 100
 
-  Environment:
+  Stage:
     Type: String
-    Description: Semantic name for this db cluster
+    Description: Semantic name for this environment
     Default: dev
 
   LogRetention:
@@ -159,7 +159,7 @@ Resources:
               - sts:AssumeRole
       Path: '/'
       Policies: 
-        - PolicyName: !Sub 'mongodb-${Environment}-logs-policy'
+        - PolicyName: !Sub 'mongodb-${Stage}-logs-policy'
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
@@ -172,12 +172,12 @@ Resources:
                   - !Sub
                     - '${logGroupArn}/*'
                     - logGroupArn: !GetAtt DBLogGroup.Arn
-      RoleName: !Sub 'mongodb-${Environment}'
+      RoleName: !Sub 'mongodb-${Stage}'
 
   InstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties: 
-      InstanceProfileName: !Sub 'mongodb-${Environment}'
+      InstanceProfileName: !Sub 'mongodb-${Stage}'
       Path: '/'
       Roles: 
         - !Ref InstanceRole
@@ -197,7 +197,7 @@ Resources:
               - sts:AssumeRole
       Path: '/'
       Policies:
-        - PolicyName: !Sub 'mongodb-${Environment}-logs'
+        - PolicyName: !Sub 'mongodb-${Stage}-logs'
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
@@ -210,7 +210,7 @@ Resources:
                   - !Sub
                     - '${arn}/*'
                     - arn: !GetAtt DBLogGroup.Arn
-        - PolicyName: !Sub 'mongodb-${Environment}-ssm'
+        - PolicyName: !Sub 'mongodb-${Stage}-ssm'
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
@@ -228,7 +228,7 @@ Resources:
   # MasterDBCreds:
   #   Type: AWS::SecretsManager::Secret
   #   Properties:
-  #     Description: !Sub '${Environment} Mongo master creds'
+  #     Description: !Sub '${Stage} Mongo master creds'
   #     GenerateSecretString:
   #       SecretStringTemplate: !Join ['', ['{"username": "', !Ref 'MasterUsername', '"}']]
   #       GenerateStringKey: "password"
@@ -302,7 +302,7 @@ Resources:
   DBLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub 'mongodb-${Environment}'
+      LogGroupName: !Sub 'mongodb-${Stage}'
       RetentionInDays: !Ref 'LogRetention'
 
   SecurityGroup:
@@ -321,7 +321,7 @@ Resources:
     Condition: OpenSSHPort
     Properties:
       GroupName: !Ref SecurityGroup
-      CidrIp: 0.0.0.0/0
+      CidrIp: !Sub '${SSHAllowedOriginIP}/32'
       FromPort: 22
       ToPort: 22
       IpProtocol: tcp
@@ -329,7 +329,7 @@ Resources:
   Dashboard:
     Type: AWS::CloudWatch::Dashboard
     Properties:
-      DashboardName: !Sub 'mongodb-${Environment}'
+      DashboardName: !Sub 'mongodb-${Stage}'
       DashboardBody: !Sub
         - '{
             "widgets": [
