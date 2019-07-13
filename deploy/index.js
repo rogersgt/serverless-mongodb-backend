@@ -106,25 +106,35 @@ function handleApiCredentials() {
 }
 
 async function saveMasterCredentials() {
-  console.log(`Saving Master MongoDB Credentials to the SSM Parameter Store...`);
-  await ssm.putParameter({
-    Name: `${PARAM_PATH}/MONGO_MASTER_USERNAME`,
-    Value: `${MONGO_MASTER_USERNAME}`,
-    Description: `Master MongoDB Username used for stage: ${STAGE}`,
-    Type: 'SecureString',
-  }).promise();
+  if (IS_NEW_DEPLOYMENT) {
+    console.log(`Saving Master MongoDB Credentials to the SSM Parameter Store...`);
+    await ssm.putParameter({
+      Name: `${PARAM_PATH}/MONGO_MASTER_USERNAME`,
+      Value: `${MONGO_MASTER_USERNAME}`,
+      Description: `Master MongoDB Username used for stage: ${STAGE}`,
+      Type: 'SecureString',
+    }).promise();
 
-  return ssm.putParameter({
-    Name: `${PARAM_PATH}/MONGO_MASTER_PASSWORD`,
-    Value: `${MONGO_MASTER_PASSWORD}`,
-    Description: `Master MongoDB Password used for stage: ${STAGE}`,
-    Type: 'SecureString',
-  }).promise();
+    return ssm.putParameter({
+      Name: `${PARAM_PATH}/MONGO_MASTER_PASSWORD`,
+      Value: `${MONGO_MASTER_PASSWORD}`,
+      Description: `Master MongoDB Password used for stage: ${STAGE}`,
+      Type: 'SecureString',
+    }).promise();
+  }
+  return true;
 }
 
+async function setIsNewDeployment() {
+  const exists = await rc.cloudformation.stackExists(CF_DB_STACKNAME);
+  IS_NEW_DEPLOYMENT = !exists;
+}
+
+
 // ---------------------- entry point ------------------- //
-(async function deploy() {
-  createOrUpdateMongoDB()
+(function deploy() {
+  setIsNewDeployment()
+  .then(createOrUpdateMongoDB)
   .then(saveMasterCredentials)
   .then(handleApiCredentials)
   .then(() => console.log('Completed deployment'))

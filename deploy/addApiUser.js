@@ -42,6 +42,7 @@ async function saveApiCredentials({ username, password, paramPath }) {
   }).promise();
 }
 
+
 module.exports = async function initializeDB({
   dbCloudFormationStack,
   dbName = 'db',
@@ -49,31 +50,25 @@ module.exports = async function initializeDB({
   apiPassword,
   paramPath,
 }) {
-  let conn;
+  const outputs = await rc.cloudformation.getStackOutputs(dbCloudFormationStack);
+  const { OutputValue:dbHost } = outputs.find((o) => o.OutputKey === 'DbHost');
+  const MONGO_URI = `mongodb://${apiUserName}:${apiPassword}@${dbHost}:27017/${dbName}?authSource=admin`;
 
-  try {
-    const outputs = await rc.cloudformation.getStackOutputs(dbCloudFormationStack);
-    const { OutputValue:dbHost } = outputs.find((o) => o.OutputKey === 'DbHost');
-    const MONGO_URI = `mongodb://${apiUserName}:${apiPassword}@${dbHost}:27017/${dbName}?authSource=admin`;
-    conn = await getConnection(MONGO_URI);
+  const conn = await getConnection(MONGO_URI);
+  const appDB = conn.db(DB_NAME);
 
-    const appDB = conn.db(DB_NAME);
-    await appDB.addUser(API_USER, API_PASSWORD, {
-      roles: [{
-        role: 'readWrite',
-        db: DB_NAME
-      }]
-    });
-    conn.close();
+  await appDB.addUser(API_USER, API_PASSWORD, {
+    roles: [{
+      role: 'readWrite',
+      db: DB_NAME
+    }]
+  });
 
-    await saveApiCredentials({
-      username: API_USER,
-      password: API_PASSWORD,
-      paramPath,
-    });
-  } catch (error) {
-    console.log(error);
-    conn.close();
-    process.exit(1);
-  }
+  conn.close();
+
+  await saveApiCredentials({
+    username: API_USER,
+    password: API_PASSWORD,
+    paramPath,
+  });
 }
