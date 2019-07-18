@@ -233,11 +233,11 @@ Resources:
           - ResourceType: instance
             Tags:
               - Key: Name
-                Value: !Ref 'Stage'
+                Value: !Sub 'mongodb-${Stage}'
           - ResourceType: volume
             Tags:
               - Key: Name
-                Value: Stage
+                Value: !Sub 'mongodb-${Stage}'
         SecurityGroups:
           - !Ref SecurityGroup
         ImageId: !If

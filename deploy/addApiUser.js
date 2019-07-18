@@ -16,12 +16,13 @@ const ssm = new SSM({ region: AWS_REGION });
 
 async function getConnection(mongoUri) {
   try {
-    conn = await MongoClient.connect(mongoUri, { useNewUrlParser: true });
+    const conn = await MongoClient.connect(mongoUri, { useNewUrlParser: true });
     return conn;
   } catch (error) {
     if (error.name === 'MongoNetworkError') {
       console.log(`Mongo server not ready yet. Retrying in ${WAIT_MS / 1000}s...`);
       await new Promise((res) => setTimeout(res, WAIT_MS));
+      return getConnection(mongoUri);
     } else {
       throw error;
     }
