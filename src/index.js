@@ -1,5 +1,7 @@
+/* eslint-disable require-atomic-updates */
 'use strict';
 import 'babel-polyfill';
+import './env';
 import mongoose from 'mongoose';
 import { handleEventBody } from './tools/shapers';
 import del from './methods/delete';
@@ -10,21 +12,32 @@ import logger from './logger';
 import badRequest from './responses/badRequest';
 import success from './responses/success';
 
+// keep CONN in global namespace for a warm connection
 let CONN = null;
-let MONGO_URI = null;
+
+const {
+  API_USERNAME,
+  API_PASSWORD,
+  DB_NAME = 'db',
+  DB_HOST = '127.0.0.1',
+} = process.env;
 
 export async function crud (event, context, callback) {
-  MONGO_URI = process.env.MONGO_URI;
-
-  context.callbackWaitsForEmptyEventLoop = false;
-  if (!CONN) {
-    CONN = await mongoose.connect(MONGO_URI, {
-      bufferMaxEntries: 0,
-      bufferCommands: false
-    });
-  }
-
   try {
+    if (!DB_USERNAME || !DB_PASSWORD) {
+      throw new Error('Missing MongoDB Credentials');
+    }
+
+    const MONGO_URI = `mongodb://${API_USERNAME}:${API_PASSWORD}@${DB_HOST}:27017/${DB_NAME}?authSource=admin`;
+
+    context.callbackWaitsForEmptyEventLoop = false;
+    if (!CONN) {
+      CONN = await mongoose.connect(MONGO_URI, {
+        bufferMaxEntries: 0,
+        bufferCommands: false
+      });
+    }
+
     const collectionName = event.path.replace('/', '');
     if (!collectionName) {
       callback(null, badRequest());

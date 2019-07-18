@@ -4,12 +4,12 @@ frameworkVersion: '=1.23.X'
 provider:
   name: aws
   runtime: nodejs8.10
-  stage: ${opt:stage, 'dev'} # use dev, test, or prod
+  stage: ${env:STAGE, 'dev'}
   region: ${opt:region, 'us-east-1'}
   profile: ${opt:profile, 'default'}
   apiKeys:
     - ${self:provider.stage}-api
-
+  stackName: ${env:CF_APP_STACKNAME, 'api'}
   iamRoleStatements:
     - Effect: Allow
       Action:
@@ -17,25 +17,27 @@ provider:
         - ec2:Describe*
         - ec2:RegisterImage
         - ec2:DeregisterImage
+        - ssm:GetParametersByPath
+        - kms:Decrypt
       Resource: '*'
+  environment:
+    NODE_ENV: ${self:custom.NodeEnvByStage.${self:provider.stage}}
+    PARAM_PATH: ${env:PARAM_PATH, '/${self:provider.stackName}/${self:provider.stage}'}
+    DB_HOST: ${cf:${env:CF_DB_STACK, 'mongodb-${env:STAGE}'}.DbHost}
+    DB_NAME: ${env:DB_NAME, 'db'}
 
-custom:
-  NodeEnvByStage:
-    dev: development
-    test: production
-    prod: production
-
-environment:
-  NODE_ENV: ${self:custom.NodeEnvByStage.${self:provider.stage}}
-  MONGO_URI: ${env:MONGO_URI, '0.0.0.0:27017/db?authSource=admin'}
 
 package:
  include:
    - node_modules/**
    - dist/**
- exclude:
-   - exclude-me.js
-   - exclude-me-dir/**
+
+custom:
+  NodeEnvByStage:
+    dev: development
+    test: test
+    prod: production
+
 
 functions:
   mongodbCrud:

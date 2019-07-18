@@ -52,9 +52,9 @@ Parameters:
     Type: Number
     Default: 100
 
-  Environment:
+  Stage:
     Type: String
-    Description: Semantic name for this db cluster
+    Description: Semantic name for this environment
     Default: dev
 
   LogRetention:
@@ -159,7 +159,7 @@ Resources:
               - sts:AssumeRole
       Path: '/'
       Policies: 
-        - PolicyName: !Sub 'mongodb-${Environment}-logs-policy'
+        - PolicyName: !Sub 'mongodb-${Stage}-logs-policy'
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
@@ -172,12 +172,12 @@ Resources:
                   - !Sub
                     - '${logGroupArn}/*'
                     - logGroupArn: !GetAtt DBLogGroup.Arn
-      RoleName: !Sub 'mongodb-${Environment}'
+      RoleName: !Sub 'mongodb-${Stage}'
 
   InstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties: 
-      InstanceProfileName: !Sub 'mongodb-${Environment}'
+      InstanceProfileName: !Sub 'mongodb-${Stage}'
       Path: '/'
       Roles: 
         - !Ref InstanceRole
@@ -197,7 +197,7 @@ Resources:
               - sts:AssumeRole
       Path: '/'
       Policies:
-        - PolicyName: !Sub 'mongodb-${Environment}-logs'
+        - PolicyName: !Sub 'mongodb-${Stage}-logs'
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
@@ -210,7 +210,7 @@ Resources:
                   - !Sub
                     - '${arn}/*'
                     - arn: !GetAtt DBLogGroup.Arn
-        - PolicyName: !Sub 'mongodb-${Environment}-ssm'
+        - PolicyName: !Sub 'mongodb-${Stage}-ssm'
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
@@ -225,20 +225,19 @@ Resources:
                   - kms:Get*
                 Resource: '*'
 
-  # MasterDBCreds:
-  #   Type: AWS::SecretsManager::Secret
-  #   Properties:
-  #     Description: !Sub '${Environment} Mongo master creds'
-  #     GenerateSecretString:
-  #       SecretStringTemplate: !Join ['', ['{"username": "', !Ref 'MasterUsername', '"}']]
-  #       GenerateStringKey: "password"
-  #       PasswordLength: 16
-  #       ExcludeCharacters: '"@/\'
-
   LaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
     Properties:
       LaunchTemplateData:
+        TagSpecifications:
+          - ResourceType: instance
+            Tags:
+              - Key: Name
+                Value: !Sub 'mongodb-${Stage}'
+          - ResourceType: volume
+            Tags:
+              - Key: Name
+                Value: !Sub 'mongodb-${Stage}'
         SecurityGroups:
           - !Ref SecurityGroup
         ImageId: !If
@@ -269,7 +268,8 @@ Resources:
                   docker_options echo '--storage-opt dm.basesize=${DockerStorage}' >> /etc/sysconfig/docker &&\
                   echo "fs.file-max = 64000" >> /etc/sysctl.conf
                 sudo service docker start
-                # sudo yum install -y aws-cfn-bootstrap
+                # allow non-root user to access docker for troubleshooting
+                sudo usermod -a -G docker ec2-user
                 sudo docker run -d \
                   -v /home/ec2-user/data:/data \
                   -p 27017:27017 \
@@ -294,8 +294,6 @@ Resources:
                 chmod +x /home/ec2-user/start.sh
                 # set cron to start mongodb docker on reboot
                 crontab -l | { cat; echo "@reboot /home/ec2-user/start.sh"; } | crontab -
-                # allow non-root user to access docker for troubleshooting
-                sudo usermod -a -G docker ec2-user
               - DockerStorage: !Ref DBStorage
                 MongoVersion: !Ref 'MongoVersion'
                 LogGroup: !Ref DBLogGroup
@@ -303,7 +301,7 @@ Resources:
   DBLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub 'mongodb-${Environment}'
+      LogGroupName: !Sub 'mongodb-${Stage}'
       RetentionInDays: !Ref 'LogRetention'
 
   SecurityGroup:
@@ -322,7 +320,7 @@ Resources:
     Condition: OpenSSHPort
     Properties:
       GroupName: !Ref SecurityGroup
-      CidrIp: 0.0.0.0/0
+      CidrIp: !Sub '${SSHAllowedOriginIP}/32'
       FromPort: 22
       ToPort: 22
       IpProtocol: tcp
@@ -330,7 +328,7 @@ Resources:
   Dashboard:
     Type: AWS::CloudWatch::Dashboard
     Properties:
-      DashboardName: !Sub 'mongodb-${Environment}'
+      DashboardName: !Sub 'mongodb-${Stage}'
       DashboardBody: !Sub
         - '{
             "widgets": [
@@ -395,7 +393,13 @@ Outputs:
     Value: !Ref Instance1
     Description: EC2 Instance that hosts the writer MongoDB container
 
-  IP:
+  DbHost:
     Value: !Ref PrimaryIp
     Export:
       Name: mongodb-cluster-host
+
+  Dashboard:
+    Value: !Ref Dashboard
+
+  DbLogs:
+    Value: !Ref DBLogGroup

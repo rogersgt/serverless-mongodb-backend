@@ -3,22 +3,24 @@
   "version": "1.0.0",
   "description": "Serverless MongoDB Quick Start API",
   "main": "dist/index.js",
-  "engines": {
-    "node": "^8.x"
-  },
   "scripts": {
-    "build": "yarn eslint src && babel src --out-dir dist",
-    "test:delete": "yarn build && SLS_DEBUG=* serverless invoke local -f mongodbCrud --stage dev -p test/events/delete.json",
-    "test:get": "yarn build && SLS_DEBUG=* serverless invoke local -f mongodbCrud --stage dev -p test/events/get.json",
-    "test:post": "yarn build && SLS_DEBUG=* serverless invoke local -f mongodbCrud --stage dev -p test/events/post.json",
-    "test:put": "yarn build && SLS_DEBUG=* serverless invoke local -f mongodbCrud --stage dev -p test/events/put.json"
+    "build": "babel src --out-dir dist",
+    "db:local": "dotenv docker-compose up -d mongo",
+    "deploy": "yarn lint && yarn build && dotenv node deploy && yarn sls:deploy",
+    "lint": "eslint src && eslint deploy",
+    "sls:deploy": "dotenv serverless deploy",
+    "test:delete": "yarn build && dotenv serverless invoke local -f mongodbCrud --stage dev -p test/events/delete.json",
+    "test:get": "yarn build && dotenv serverless invoke local -f mongodbCrud --stage dev -p test/events/get.json",
+    "test:post": "yarn build && dotenv serverless invoke local -f mongodbCrud --stage dev -p test/events/post.json",
+    "test:put": "yarn build && dotenv serverless invoke local -f mongodbCrud --stage dev -p test/events/put.json"
   },
   "author": "Grady Rogers",
   "license": "MIT",
   "dependencies": {
+    "aws-param-env": "1.2.x",
+    "aws-sdk": "2.493.x",
     "babel-polyfill": "6.26.x",
     "mongoose": "5.4.x",
-    "rhinocloud-sdk": "1.1.x",
     "uuid": "3.3.x"
   },
   "devDependencies": {
@@ -28,8 +30,10 @@
     "babel-preset-env": "1.7.x",
     "colors": "1.3.x",
     "dotenv": "6.2.x",
-    "eslint": "5.12.x",
+    "dotenv-cli": "2.0.x",
+    "eslint": "6.0.x",
     "generate-password": "1.4.x",
-    "mongodb": "3.1.xx"
+    "mongodb": "3.2.x",
+    "rhinocloud-sdk": "1.1.x"
   }
 }
