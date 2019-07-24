@@ -82,7 +82,7 @@ Parameters:
     Description: AMI Backup to restore DB Instance(s) from. Leave Blank for a new DB Instance/DB cluster.
     Type: String
 
-  SSHAllowedOriginIP:
+  SSHAllowCidrIp:
     Type: String
     Description: Leave blank to close port 22
 
@@ -132,7 +132,7 @@ Conditions:
   UseImage: !Not [!Equals [!Ref 'ImageId', '']]
   UseSSHKey: !Not [!Equals [!Ref 'KeyPairName', '']]
   OpenSSHPort: !And
-  - !Not [!Equals [!Ref 'SSHAllowedOriginIP', '']]
+  - !Not [!Equals [!Ref 'SSHAllowCidrIp', '']]
   - !Condition UseSSHKey
 
 
@@ -176,6 +176,13 @@ Resources:
                   - !Sub
                     - '${logGroupArn}/*'
                     - logGroupArn: !GetAtt DBLogGroup.Arn
+        - PolicyName: !Sub 'mongodb-${Stage}-ssm-policy'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: ssm:GetParametersByPath
+                Resource: !Sub 'arn:aws:ssm:region:account-id:parameter${ParamPath}/*'
       RoleName: !Sub 'mongodb-${Stage}'
 
   InstanceProfile:
@@ -278,8 +285,8 @@ Resources:
                 # allow non-root user to access docker for troubleshooting
                 sudo usermod -a -G docker ec2-user
                 # Get the Root Creds from SSM Parameter Store
-                USERNAME=$(aws ssm get-parameter --name "${ParamPath}/MONGO_MASTER_USERNAME" --with-decryption --region ${Region} | jq '.Parameter.Value' | sed "s/\"//g")
-                PASSWORD=$(aws ssm get-parameter --name "${ParamPath}/MONGO_MASTER_PASSWORD" --with-decryption --region ${Region} | jq '.Parameter.Value' | sed "s/\"//g")
+                export USERNAME=$(aws ssm get-parameter --name ${ParamPath}/MONGO_MASTER_USERNAME --with-decryption --region ${Region} | jq '.Parameter.Value' | sed "s/\"//g")
+                export PASSWORD=$(aws ssm get-parameter --name ${ParamPath}/MONGO_MASTER_PASSWORD --with-decryption --region ${Region} | jq '.Parameter.Value' | sed "s/\"//g")
                 docker run -d \
                   -v /home/ec2-user/data:/data \
                   -p 27017:27017 \
@@ -331,7 +338,7 @@ Resources:
     Condition: OpenSSHPort
     Properties:
       GroupName: !Ref SecurityGroup
-      CidrIp: !Sub '${SSHAllowedOriginIP}/32'
+      CidrIp: !Sub '${SSHAllowCidrIp}'
       FromPort: 22
       ToPort: 22
       IpProtocol: tcp

@@ -18,23 +18,27 @@ module.exports = async function({
   targetPassword,
   masterUsername,
   masterPassword,
+  admin = false,
 }) {
   const outputs = await rc.cloudformation.getStackOutputs(dbCloudFormationStack);
   const { OutputValue:dbHost } = outputs.find((o) => o.OutputKey === 'DbHost');
   const MONGO_URI = `mongodb://${masterUsername}:${masterPassword}@${dbHost}:27017/${dbName}?authSource=admin`;
   const conn = await getConnection(MONGO_URI);
-  const appDB = conn.db(DB_NAME);
 
-  const targetUser = await appDB.getUser(targetUsername);
-  if (!targetUser) {
-    await appDB.addUser(targetUsername, targetPassword, {
-      roles: [{
-        role: 'readWrite',
-        db: dbName,
-      }]
-    });
-  } else {
-    await appDB.changeUserPassword(targetUsername, targetPassword);
+  try {
+    await conn.db('admin')
+      .addUser(targetUsername, targetPassword, {
+        roles: [{
+          role: admin ? 'userAdmin' : 'readWrite',
+          db: dbName,
+        }],
+      });
+  } catch (e) {
+    if (e.message && e.message === `User "${targetUsername}@admin" already exists`) {
+      console.log(e.message);
+    } else {
+      throw e;
+    }
   }
 
   return conn.close();

@@ -14,3 +14,5 @@ dist
 
 # local mongo db data
 mongodb
+
+.vscode
