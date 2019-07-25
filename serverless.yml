@@ -1,11 +1,11 @@
 service: serverless-mongodb-backend
-frameworkVersion: '=1.23.X'
+frameworkVersion: '>=1.23.X <2.0.0'
 
 provider:
   name: aws
   runtime: nodejs8.10
   stage: ${env:STAGE, 'dev'}
-  region: ${opt:region, 'us-east-1'}
+  region: ${env:AWS_REGION, 'us-east-1'}
   apiKeys:
     - ${self:provider.stage}-api
   stackName: ${env:CF_APP_STACKNAME, 'api'}

@@ -8,7 +8,7 @@
     "db:local": "dotenv docker-compose up -d mongo",
     "deploy": "yarn lint && yarn build && dotenv node deploy && yarn sls:deploy",
     "lint": "eslint src && eslint deploy",
-    "sls:deploy": "dotenv serverless deploy",
+    "sls:deploy": "dotenv serverless deploy --force",
     "test:delete": "yarn build && dotenv serverless invoke local -f mongodbCrud --stage dev -p test/events/delete.json",
     "test:get": "yarn build && dotenv serverless invoke local -f mongodbCrud --stage dev -p test/events/get.json",
     "test:post": "yarn build && dotenv serverless invoke local -f mongodbCrud --stage dev -p test/events/post.json",
@@ -34,6 +34,7 @@
     "eslint": "6.0.x",
     "generate-password": "1.4.x",
     "mongodb": "3.2.x",
-    "rhinocloud-sdk": "1.1.x"
+    "rhinocloud-sdk": "1.1.x",
+    "serverless": "1.48.x"
   }
 }
