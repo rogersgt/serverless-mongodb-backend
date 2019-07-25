@@ -57,6 +57,10 @@ Parameters:
     Description: Semantic name for this environment
     Default: dev
 
+  ParamPath:
+    Type: String
+    Description: The recursive SSM Parameter path where the mongo master credentials are stored (i.e. "/mongodb-dev")
+
   LogRetention:
     Type: Number
     Description: Number of days to keep logs in CloudWatch
@@ -78,7 +82,7 @@ Parameters:
     Description: AMI Backup to restore DB Instance(s) from. Leave Blank for a new DB Instance/DB cluster.
     Type: String
 
-  SSHAllowedOriginIP:
+  SSHAllowCidrIp:
     Type: String
     Description: Leave blank to close port 22
 
@@ -128,7 +132,7 @@ Conditions:
   UseImage: !Not [!Equals [!Ref 'ImageId', '']]
   UseSSHKey: !Not [!Equals [!Ref 'KeyPairName', '']]
   OpenSSHPort: !And
-  - !Not [!Equals [!Ref 'SSHAllowedOriginIP', '']]
+  - !Not [!Equals [!Ref 'SSHAllowCidrIp', '']]
   - !Condition UseSSHKey
 
 
@@ -172,6 +176,13 @@ Resources:
                   - !Sub
                     - '${logGroupArn}/*'
                     - logGroupArn: !GetAtt DBLogGroup.Arn
+        - PolicyName: !Sub 'mongodb-${Stage}-ssm-policy'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: ssm:GetParametersByPath
+                Resource: !Sub 'arn:aws:ssm:region:account-id:parameter${ParamPath}/*'
       RoleName: !Sub 'mongodb-${Stage}'
 
   InstanceProfile:
@@ -261,8 +272,11 @@ Resources:
               - |
                 #!/bin/bash
                 sudo yum update -y
-                # install docker
-                sudo yum install -y docker
+                # install dependencies
+                sudo yum install -y docker wget
+                sudo wget -O jq https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64
+                sudo chmod +x ./jq
+                sudo cp jq /usr/bin
                 # set docker storage per parameter
                 cloud-init-per once \
                   docker_options echo '--storage-opt dm.basesize=${DockerStorage}' >> /etc/sysconfig/docker &&\
@@ -270,11 +284,14 @@ Resources:
                 sudo service docker start
                 # allow non-root user to access docker for troubleshooting
                 sudo usermod -a -G docker ec2-user
-                sudo docker run -d \
+                # Get the Root Creds from SSM Parameter Store
+                export USERNAME=$(aws ssm get-parameter --name ${ParamPath}/MONGO_MASTER_USERNAME --with-decryption --region ${Region} | jq '.Parameter.Value' | sed "s/\"//g")
+                export PASSWORD=$(aws ssm get-parameter --name ${ParamPath}/MONGO_MASTER_PASSWORD --with-decryption --region ${Region} | jq '.Parameter.Value' | sed "s/\"//g")
+                docker run -d \
                   -v /home/ec2-user/data:/data \
                   -p 27017:27017 \
-                  -e "MONGO_INITDB_ROOT_USERNAME=${MasterUsername}" \
-                  -e "MONGO_INITDB_ROOT_PASSWORD=${MasterPassword}" \
+                  -e "MONGO_INITDB_ROOT_USERNAME=$USERNAME" \
+                  -e "MONGO_INITDB_ROOT_PASSWORD=$PASSWORD" \
                   --name mongo \
                   --restart=always \
                   --log-driver awslogs \
@@ -282,7 +299,7 @@ Resources:
                   --log-opt awslogs-group=${LogGroup} \
                   mongo:${MongoVersion}
                 # write the startup command on a shell file
-                echo "sudo docker run -d \
+                echo "docker run -d \
                   -v /home/ec2-user/data:/data \
                   -p 27017:27017 \
                   --name mongo \
@@ -297,6 +314,7 @@ Resources:
               - DockerStorage: !Ref DBStorage
                 MongoVersion: !Ref 'MongoVersion'
                 LogGroup: !Ref DBLogGroup
+                Region: !Ref 'AWS::Region'
 
   DBLogGroup:
     Type: AWS::Logs::LogGroup
@@ -320,7 +338,7 @@ Resources:
     Condition: OpenSSHPort
     Properties:
       GroupName: !Ref SecurityGroup
-      CidrIp: !Sub '${SSHAllowedOriginIP}/32'
+      CidrIp: !Sub '${SSHAllowCidrIp}'
       FromPort: 22
       ToPort: 22
       IpProtocol: tcp

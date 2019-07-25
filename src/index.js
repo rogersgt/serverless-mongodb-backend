@@ -24,7 +24,7 @@ const {
 
 export async function crud (event, context, callback) {
   try {
-    if (!DB_USERNAME || !DB_PASSWORD) {
+    if (!API_USERNAME || !API_PASSWORD) {
       throw new Error('Missing MongoDB Credentials');
     }
 
