@@ -136,16 +136,19 @@ async function getRootCredsFromParamStore() {
 
 async function handleMongoApiUser() {
   console.log(`Updating MongoDB Credentials for the API...`);
-  const { username, password } = await getApiCredsFromSSMStore();
-  const newApiUsername = API_USERNAME || username || genPwd.generate({ length: 8, numbers: true });
-  const newApiPassword = API_PASSWORD || password || genPwd.generate({ length: 20, numbers: true });
+  const {
+    username: apiUsername,
+    password: apiPassword,
+  } = await getApiCredsFromSSMStore();
+  const newApiUsername = API_USERNAME || apiUsername || genPwd.generate({ length: 8, numbers: true });
+  const newApiPassword = API_PASSWORD || apiPassword || genPwd.generate({ length: 20, numbers: true });
 
   const {
     username: masterUsername,
     password: masterPassword,
   } = await getRootCredsFromParamStore();
 
-  if (newApiUsername !== username || newApiPassword !== password) {
+  if (newApiUsername !== apiUsername || newApiPassword !== apiPassword) {
     await upsertMongoUser({
       targetUsername: newApiUsername,
       targetPassword: newApiPassword,
@@ -159,8 +162,8 @@ async function handleMongoApiUser() {
   }
 
   return {
-    username,
-    password,
+    username: newApiUsername,
+    password: newApiPassword,
   };
 }
 

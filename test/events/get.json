@@ -28,7 +28,8 @@
   },
   "queryStringParameters": null,
   "pathParameters": {
-    "id": "31e91db2-05e8-4b89-9156-06e964333a4c"
+    "id": "31e91db2-05e8-4b89-9156-06e964333a4c",
+    "doc": "moose"
   },
   "stageVariables": null,
   "requestContext": {

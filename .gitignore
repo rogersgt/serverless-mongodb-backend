@@ -12,7 +12,4 @@ dist
 *.env
 !sample.env
 
-# local mongo db data
-mongodb
-
 .vscode

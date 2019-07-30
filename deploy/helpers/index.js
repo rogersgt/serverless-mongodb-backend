@@ -6,7 +6,6 @@ async function getConnection(mongoUri) {
     const conn = await MongoClient.connect(mongoUri, { useNewUrlParser: true });
     return conn;
   } catch (error) {
-    console.log(error);
     if (error.name === 'MongoNetworkError') {
       console.log(`Mongo server not ready yet. Retrying in ${WAIT_MS / 1000}s...`); // eslint-disable-line no-console
       await new Promise((res) => setTimeout(res, WAIT_MS));

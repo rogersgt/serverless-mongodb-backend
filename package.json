@@ -5,14 +5,14 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "babel src --out-dir dist",
-    "db:local": "dotenv docker-compose up -d mongo",
     "deploy": "yarn lint && yarn build && dotenv node deploy && yarn sls:deploy",
     "lint": "eslint src && eslint deploy",
-    "sls:deploy": "dotenv serverless deploy --force",
-    "test:delete": "yarn build && dotenv serverless invoke local -f mongodbCrud --stage dev -p test/events/delete.json",
-    "test:get": "yarn build && dotenv serverless invoke local -f mongodbCrud --stage dev -p test/events/get.json",
-    "test:post": "yarn build && dotenv serverless invoke local -f mongodbCrud --stage dev -p test/events/post.json",
-    "test:put": "yarn build && dotenv serverless invoke local -f mongodbCrud --stage dev -p test/events/put.json"
+    "sls:deploy": "dotenv sls deploy --force",
+    "debug:post": "node --inspect ./node_modules/.bin/serverless invoke local -f mongodbCrud -p test/events/post.json",
+    "test:delete": "yarn build && dotenv -- sls invoke local -f mongodbCrud -p test/events/delete.json",
+    "test:get": "yarn build && dotenv -- sls invoke local -f mongodbCrud -p test/events/get.json",
+    "test:post": "yarn build && dotenv -- sls invoke local -f mongodbCrud -p test/events/post.json",
+    "test:put": "yarn build && dotenv -- sls invoke local -f mongodbCrud -p test/events/put.json"
   },
   "author": "Grady Rogers",
   "license": "MIT",

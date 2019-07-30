@@ -27,7 +27,9 @@
       "X-Forwarded-Proto": "https"
   },
   "queryStringParameters": null,
-  "pathParameters": null,
+  "pathParameters": {
+    "doc": "moose"
+  },
   "stageVariables": null,
   "requestContext": {
       "path": "/dev/",
