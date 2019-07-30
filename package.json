@@ -11,6 +11,7 @@
     "debug:post": "node --inspect ./node_modules/.bin/serverless invoke local -f mongodbCrud -p test/events/post.json",
     "test:delete": "yarn build && dotenv -- sls invoke local -f mongodbCrud -p test/events/delete.json",
     "test:get": "yarn build && dotenv -- sls invoke local -f mongodbCrud -p test/events/get.json",
+    "test:get-all": "yarn build && dotenv -- sls invoke local -f mongodbCrud -p test/events/get.json",
     "test:post": "yarn build && dotenv -- sls invoke local -f mongodbCrud -p test/events/post.json",
     "test:put": "yarn build && dotenv -- sls invoke local -f mongodbCrud -p test/events/put.json"
   },
@@ -20,7 +21,7 @@
     "aws-param-env": "1.2.x",
     "aws-sdk": "2.493.x",
     "babel-polyfill": "6.26.x",
-    "mongoose": "5.4.x",
+    "mongoose": "5.6.x",
     "uuid": "3.3.x"
   },
   "devDependencies": {

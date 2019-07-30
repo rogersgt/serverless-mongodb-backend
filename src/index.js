@@ -10,6 +10,7 @@ import get from './methods/get';
 import logger from './logger';
 import badRequest from './responses/badRequest';
 import success from './responses/success';
+import headers from './headers/default';
 import { handleEventBody } from './tools/shapers';
 
 // keep CONN in global namespace for a warm connection
@@ -33,7 +34,8 @@ export async function crud (event, context, callback) {
     if (!CONN) {
       CONN = await mongoose.connect(MONGO_URI, {
         bufferMaxEntries: 0,
-        bufferCommands: false
+        bufferCommands: false,
+        useNewUrlParser: true,
       });
     }
 
@@ -46,28 +48,31 @@ export async function crud (event, context, callback) {
 
     const body = handleEventBody(event);
     const requestMethod = event.requestContext.httpMethod.toLowerCase();
-    let methodResp;
-
-    switch(requestMethod) {
-      case 'delete': methodResp = await del(collectionName, event.pathParameters);
-        break;
-      case 'get': methodResp = await get(collectionName, event.pathParameters);
-        break;
-      case 'post': methodResp = await post(collectionName, body);
-        break;
-      case 'put': methodResp = await put(collectionName, body);
-        break;
-      default:
-        mongoose.disconnect();
-        callback(null, badRequest());
-        return 1; // end function
-    }
+    const payload = (requestMethod === 'delete' || requestMethod === 'get') ? event.pathParameters : body;
+    const handlerFunction = getHandlerFunction(requestMethod);
+    const methodResp = await handlerFunction(collectionName, payload);
 
     await mongoose.disconnect();
+
     callback(null, success(methodResp));
   } catch (error) {
     logger.error(error);
     mongoose.disconnect();
     callback(error);
+  }
+}
+
+function getHandlerFunction(requestMethod) {
+  switch(requestMethod) {
+    case 'delete': return del;
+    case 'get': return get;
+    case 'post': return post;
+    case 'put': return put;
+    default: return function() {
+      return {
+        headers,
+        statusCode: 400,
+      };
+    }
   }
 }

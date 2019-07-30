@@ -12,5 +12,7 @@ export default function(collection, doc) {
   .collection(collection)
   .findOneAndUpdate({ _id: _id }, {
     $set: updateDoc,
+  }, {
+    new: true,
   });
 }

@@ -5,5 +5,5 @@ export default function(collection, doc) {
   if (!doc._id) {
     doc._id = uuid();
   }
-  return mongoose.connection.db.collection(collection).save(doc);
+  return mongoose.connection.db.collection(collection).insertOne(doc);
 }

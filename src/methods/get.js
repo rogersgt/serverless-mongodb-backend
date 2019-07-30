@@ -1,9 +1,11 @@
 import mongoose from 'mongoose';
 
-export default function(collection, pathParams) {
+export default async function(collection, pathParams) {
   if (!pathParams) {
     return mongoose.connection.db.collection(collection).find();
   }
   const { id } = pathParams;
-  return mongoose.connection.collection(collection).findOne({ _id: id });
+  const data = await mongoose.connection.collection(collection).findOne({})
+  console.log(data);
+  return data;
 }

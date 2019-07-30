@@ -26,7 +26,6 @@ module.exports = async function({
   const conn = await getConnection(MONGO_URI);
 
   try {
-    console.log('UPDATING MONGO USER')
     await conn.db('admin')
       .addUser(targetUsername, targetPassword, {
         roles: [{
