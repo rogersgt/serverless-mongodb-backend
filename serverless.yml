@@ -8,7 +8,7 @@ provider:
   region: ${env:AWS_REGION, 'us-east-1'}
   apiKeys:
     - ${self:provider.stage}-api
-  stackName: ${env:CF_APP_STACKNAME, 'api'}
+  stackName: ${env:CF_APP_STACKNAME, 'api-${self:provider.stage}'}
   iamRoleStatements:
     - Effect: Allow
       Action:
@@ -21,7 +21,7 @@ provider:
       Resource: '*'
   environment:
     NODE_ENV: ${self:custom.NodeEnvByStage.${self:provider.stage}}
-    PARAM_PATH: ${env:PARAM_PATH, '/${self:provider.stackName}/${self:provider.stage}'}
+    PARAM_PATH: ${env:API_PARAM_PATH, '/${self:provider.stackName}'}
     DB_HOST: ${self:custom.DbHost.${self:provider.stage}, '${self:custom.DbHost.cloud}'}
     DB_NAME: ${env:DB_NAME, 'db'}
 

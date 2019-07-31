@@ -18,7 +18,9 @@ const {
   DB_NAME = 'db',
   STAGE = 'dev',
   CF_DB_STACKNAME = `mongodb-${STAGE}`,
-  PARAM_PATH = `/${CF_DB_STACKNAME}`,
+  CF_APP_STACKNAME = `api-${STAGE}`,
+  MASTER_PARAM_PATH = `/${CF_DB_STACKNAME}`,
+  API_PARAM_PATH = `/${CF_APP_STACKNAME}`,
   IOPS = 100,
   IMAGE_ID = '',
   KEYPAIR_NAME = '',
@@ -51,10 +53,10 @@ async function createOrUpdateMongoDB() {
 }
 
 async function getApiCredsFromSSMStore() {
-  const SSM_USERNAME_PATH = `${PARAM_PATH}/API_USERNAME`;
-  const SSM_PW_PATH = `${PARAM_PATH}/API_PASSWORD`;
+  const SSM_USERNAME_PATH = `${API_PARAM_PATH}/API_USERNAME`;
+  const SSM_PW_PATH = `${API_PARAM_PATH}/API_PASSWORD`;
   const getParams = {
-    Path: PARAM_PATH,
+    Path: API_PARAM_PATH,
     WithDecryption: true,
   };
   const { Parameters:params } = await ssm.getParametersByPath(getParams).promise();
@@ -72,9 +74,9 @@ async function getApiCredsFromSSMStore() {
 async function getCFParameters() {
   await new Promise((res) => setTimeout(res, WAIT_MS));
 
-  const { Parameters:ssmParams } = await ssm.getParametersByPath({ Path: PARAM_PATH, WithDecryption: true }).promise();
-  const { Value:masterUsername } = ssmParams.find((p) => p.Name === `${PARAM_PATH}/MONGO_MASTER_USERNAME`);
-  const { Value:masterPassword } = ssmParams.find((p) => p.Name === `${PARAM_PATH}/MONGO_MASTER_PASSWORD`);
+  const { Parameters:ssmParams } = await ssm.getParametersByPath({ Path: MASTER_PARAM_PATH, WithDecryption: true }).promise();
+  const { Value:masterUsername } = ssmParams.find((p) => p.Name === `${MASTER_PARAM_PATH}/MONGO_MASTER_USERNAME`);
+  const { Value:masterPassword } = ssmParams.find((p) => p.Name === `${MASTER_PARAM_PATH}/MONGO_MASTER_PASSWORD`);
 
   const params = [{
     key: 'InstanceType',
@@ -114,16 +116,16 @@ async function getCFParameters() {
     value: IMAGE_ID,
   }, {
     key: 'ParamPath',
-    value: PARAM_PATH,
+    value: MASTER_PARAM_PATH,
   }];
 
   return params;
 }
 
 async function getRootCredsFromParamStore() {
-  const { Parameters:params } = await ssm.getParametersByPath({ Path: PARAM_PATH, WithDecryption: true }).promise();
-  const userParam = params.find((p) => p.Name === `${PARAM_PATH}/MONGO_MASTER_USERNAME`);
-  const pwParam = params.find((p) => p.Name === `${PARAM_PATH}/MONGO_MASTER_PASSWORD`);
+  const { Parameters:params } = await ssm.getParametersByPath({ Path: MASTER_PARAM_PATH, WithDecryption: true }).promise();
+  const userParam = params.find((p) => p.Name === `${MASTER_PARAM_PATH}/MONGO_MASTER_USERNAME`);
+  const pwParam = params.find((p) => p.Name === `${MASTER_PARAM_PATH}/MONGO_MASTER_PASSWORD`);
 
   const ssmUserVal = !!userParam ? userParam.Value : undefined;
   const ssmPwVal = !!pwParam ? pwParam.Value : undefined;
@@ -202,8 +204,8 @@ async function handleRootMongoCreds() {
 }
 
 async function saveApiCreds({ username, password }) {
-  const USERNAME_PARAM_NAME = `${PARAM_PATH}/API_USERNAME`;
-  const PASSWORD_PARAM_NAME = `${PARAM_PATH}/API_PASSWORD`;
+  const USERNAME_PARAM_NAME = `${API_PARAM_PATH}/API_USERNAME`;
+  const PASSWORD_PARAM_NAME = `${API_PARAM_PATH}/API_PASSWORD`;
 
   await ssm.putParameter({
     Name: USERNAME_PARAM_NAME,
@@ -228,7 +230,7 @@ async function saveApiCreds({ username, password }) {
 async function saveMasterCredentialsToParamStore({ username, password }) {
   console.log(`Saving Master MongoDB Credentials to the SSM Parameter Store...`);
   await ssm.putParameter({
-    Name: `${PARAM_PATH}/MONGO_MASTER_USERNAME`,
+    Name: `${MASTER_PARAM_PATH}/MONGO_MASTER_USERNAME`,
     Value: username,
     Description: `Master MongoDB Username used for stage: ${STAGE}`,
     Overwrite: true,
@@ -236,7 +238,7 @@ async function saveMasterCredentialsToParamStore({ username, password }) {
   }).promise();
 
   return ssm.putParameter({
-    Name: `${PARAM_PATH}/MONGO_MASTER_PASSWORD`,
+    Name: `${MASTER_PARAM_PATH}/MONGO_MASTER_PASSWORD`,
     Value: password,
     Description: `Master MongoDB Password used for stage: ${STAGE}`,
     Overwrite: true,

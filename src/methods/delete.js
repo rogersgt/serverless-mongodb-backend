@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 
-export default function(collection, pathParams) {
+export default function(collection, query, pathParams) {
   if (!pathParams || !pathParams.id) {
     throw new Error('No "id" provided. Cannot delete a doc without the unique identifier.')
   }

@@ -11,7 +11,7 @@
     "debug:post": "node --inspect ./node_modules/.bin/serverless invoke local -f mongodbCrud -p test/events/post.json",
     "test:delete": "yarn build && dotenv -- sls invoke local -f mongodbCrud -p test/events/delete.json",
     "test:get": "yarn build && dotenv -- sls invoke local -f mongodbCrud -p test/events/get.json",
-    "test:get-all": "yarn build && dotenv -- sls invoke local -f mongodbCrud -p test/events/get.json",
+    "test:get-all": "yarn build && dotenv -- sls invoke local -f mongodbCrud -p test/events/get-all.json",
     "test:post": "yarn build && dotenv -- sls invoke local -f mongodbCrud -p test/events/post.json",
     "test:put": "yarn build && dotenv -- sls invoke local -f mongodbCrud -p test/events/put.json"
   },

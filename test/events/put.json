@@ -28,7 +28,8 @@
   },
   "queryStringParameters": null,
   "pathParameters": {
-    "doc": "moose"
+    "doc": "moose",
+    "id": "31e91db2-05e8-4b89-9156-06e964333a4c"
   },
   "stageVariables": null,
   "requestContext": {
@@ -56,7 +57,6 @@
       "apiId": "j3azlsj0c4"
   },
   "body": {
-    "_id": "31e91db2-05e8-4b89-9156-06e964333a4c",
     "name": "Alaska Moose",
     "description": "One of the largest moose species. Bulls can get 2.5m high at the shoulders (average 2m) and up to 3.1m long at a weight of 1000 kg. A full-grown bull with its tremendous antlers ( about 23kg, 2m wide) is the largest wild animal in North America."
   },

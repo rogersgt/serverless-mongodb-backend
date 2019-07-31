@@ -13,20 +13,20 @@ import success from './responses/success';
 import headers from './headers/default';
 import { handleEventBody } from './tools/shapers';
 
+const { PARAM_PATH } = process.env;
+ssmParams.load(PARAM_PATH);
+
+const {
+  API_USERNAME,
+  API_PASSWORD,
+  DB_NAME = 'db',
+  DB_HOST = '127.0.0.1',
+} = process.env;
+
 // keep CONN in global namespace for a warm connection
 let CONN = null;
 
 export async function crud (event, context, callback) {
-  const { PARAM_PATH = '/' } = process.env;
-  ssmParams.load(PARAM_PATH);
-
-  const {
-    API_USERNAME,
-    API_PASSWORD,
-    DB_NAME = 'db',
-    DB_HOST = '127.0.0.1',
-  } = process.env;
-
   try {
     const credsStr = (!!API_USERNAME && !! API_PASSWORD) ?  `${API_USERNAME}:${API_PASSWORD}@` : '';
     const MONGO_URI = `mongodb://${credsStr}${DB_HOST}:27017/${DB_NAME}?authSource=admin`;
@@ -48,18 +48,20 @@ export async function crud (event, context, callback) {
 
     const body = handleEventBody(event);
     const requestMethod = event.requestContext.httpMethod.toLowerCase();
-    const payload = (requestMethod === 'delete' || requestMethod === 'get') ? event.pathParameters : body;
     const handlerFunction = getHandlerFunction(requestMethod);
-    const methodResp = await handlerFunction(collectionName, payload);
+    const methodResp = await handlerFunction(collectionName, body, event.pathParameters);
 
-    await mongoose.disconnect();
-
-    callback(null, success(methodResp));
+    await endSuccessFully(callback, methodResp);
   } catch (error) {
     logger.error(error);
     mongoose.disconnect();
     callback(error);
   }
+}
+
+async function endSuccessFully(callback, resp) {
+  await mongoose.disconnect();
+  callback(null, success(resp));
 }
 
 function getHandlerFunction(requestMethod) {

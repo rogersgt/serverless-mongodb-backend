@@ -1,3 +1,3 @@
 module.exports = {
-  WAIT_MS: 15000,
+  WAIT_MS: 5000,
 };
