@@ -101,19 +101,7 @@ Parameters:
 Mappings:
   ConfigByRegion:
     us-east-1:
-      AMI: ami-0ff8a91507f77f867
-    us-east-2:
-      AMI: ami-0b59bfac6be064b78
-    us-west-2:
-      AMI: ami-a0cfeed8
-    us-west-1:
-      AMI: ami-0bdb828fd58c52235
-    eu-west-3:
-      AMI: ami-0ebc281c20e89ba4b
-    eu-west-2:
-      AMI: ami-f976839e
-    eu-west-1:
-      AMI: ami-047bb4163c506cd98
+      AMI: ami-2051294a # AWS-owned Rhel 7 ami-2051294a
 
   Options:
     VolumeSize:
